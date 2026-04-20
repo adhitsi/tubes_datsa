@@ -1,43 +1,51 @@
-from utils.feature_engineering import FeatureEngineer
-from flask import Flask, request, jsonify, render_template
+import streamlit as st
 import pandas as pd
 import joblib
 
-app = Flask(__name__)
+# ======================
+# LOAD PIPELINE MODEL
+# ======================
+model = joblib.load("model/model_rf.pkl")
 
-model = joblib.load('model/model_rf.pkl')
+st.title("💰 MediPredict")
 
-@app.route('/')
-def home():
-    return render_template('index.html')
+# ======================
+# INPUT USER
+# ======================
+age = st.number_input("Age", 1, 100, 25)
+bmi = st.number_input("BMI", 10.0, 60.0, 25.0)
+children = st.number_input("Children", 0, 10, 0)
 
+sex = st.selectbox("Sex", ["male", "female"])
+smoker = st.selectbox("Smoker", ["yes", "no"])
+region = st.selectbox("Region", ["northeast", "northwest", "southeast", "southwest"])
 
-@app.route('/predict', methods=['POST'])
-def predict():
+# ======================
+# DATAFRAME (TIDAK PERLU ENCODING MANUAL)
+# ======================
+input_data = pd.DataFrame([{
+    "age": age,
+    "bmi": bmi,
+    "children": children,
+    "sex": sex,
+    "smoker": smoker,
+    "region": region
+}])
+
+# ======================
+# PREDICTION
+# ======================
+if st.button("Predict"):
     try:
-        
-        data = request.get_json()
-        if data['age'] <= 0:
-            return jsonify({'error': 'Umur harus > 0'}), 400
-        if data['bmi'] <= 0:
-            return jsonify({'error': 'BMI harus > 0'}), 400
-        if data['bmi'] < 10 or data['bmi'] > 60:
-            return jsonify({'error': 'BMI tidak realistis (10 - 60)'}), 400
+        pred = model.predict(input_data)[0]
 
-        df = pd.DataFrame([data])
+        st.success(f"💵 Prediksi biaya: ${pred:,.2f}")
 
-        pred = model.predict(df)[0]
-
-        return jsonify({
-            'prediction': float(pred),
-            'range': {
-                'lower': float(pred * 0.8),
-                'upper': float(pred * 1.2)
-            }
-        })
+        st.info(f"""
+        📊 Range:
+        - Lower: ${pred * 0.8:,.2f}
+        - Upper: ${pred * 1.2:,.2f}
+        """)
 
     except Exception as e:
-        return jsonify({'error': str(e)})
-
-if __name__ == '__main__':
-    app.run(debug=True)
+        st.error(f"Error: {str(e)}")
