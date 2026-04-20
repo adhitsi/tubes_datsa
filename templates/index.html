@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard Asuransi</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+<div class="container">
+    <h1>📊 Dashboard Prediksi Asuransi</h1>
+
+    <!-- FORM -->
+    <div class="card">
+        <form id="form">
+            <div class="grid">
+                <input type="number" id="age" placeholder="Umur" required>
+                <input type="number" id="bmi" placeholder="BMI" step="0.1" required>
+                <input type="number" id="children" placeholder="Jumlah Anak" required>
+
+                <select id="sex">
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                </select>
+
+                <select id="smoker">
+                    <option value="yes">Smoker</option>
+                    <option value="no">Non-Smoker</option>
+                </select>
+
+                <select id="region">
+                    <option value="northeast">Northeast</option>
+                    <option value="northwest">Northwest</option>
+                    <option value="southeast">Southeast</option>
+                    <option value="southwest">Southwest</option>
+                </select>
+            </div>
+
+            <button type="submit">Prediksi</button>
+        </form>
+    </div>
+
+    <!-- RESULT -->
+    <div class="card result">
+        <h2>💰 Estimasi Biaya</h2>
+        <h1 id="prediction">-</h1>
+        <p id="range"></p>
+        <p id="risk"></p>
+    </div>
+
+    <!-- CHART -->
+    <div class="card">
+        <h2>📈 Visualisasi</h2>
+        <canvas id="chart"></canvas>
+    </div>
+
+    <div class="card">
+        <h2>⚠️ Analisis Risiko</h2>
+    <div id="risk-box"></div>
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="/static/js/script.js"></script>
+
+</body>
+</html>
