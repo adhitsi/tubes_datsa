@@ -5,207 +5,183 @@ import numpy as np
 import matplotlib.pyplot as plt
 from io import BytesIO
 
+from sklearn.linear_model import LinearRegression
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.model_selection import train_test_split
+
 # ======================
-# CUSTOM CSS (MODERN UI)
+# CONFIG
 # ======================
 st.set_page_config(page_title="MediPrediction", layout="wide")
 
+# ======================
+# CSS
+# ======================
 st.markdown("""
 <style>
-.stApp {
-    background: linear-gradient(135deg, #0f172a, #1e293b);
-    color: white;
-}
-.card {
-    background: #1e293b;
-    padding: 20px;
-    border-radius: 15px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-    margin-bottom: 20px;
-}
-.metric {
-    font-size: 22px;
-    font-weight: bold;
-    color: #22c55e;
-}
-h1, h2, h3 {
-    color: #38bdf8;
-}
-.stButton>button {
-    background: linear-gradient(90deg, #06b6d4, #3b82f6);
-    color: white;
-    border-radius: 10px;
-}
+.stApp {background: linear-gradient(135deg, #0f172a, #1e293b); color: white;}
+.card {background: #1e293b; padding: 20px; border-radius: 15px; margin-bottom: 20px;}
+.metric {font-size: 22px; font-weight: bold; color: #22c55e;}
+h1, h2, h3 {color: #38bdf8;}
 </style>
 """, unsafe_allow_html=True)
 
 # ======================
-# LOAD MODEL
+# NAVIGATION
+# ======================
+page = st.sidebar.radio("MediPrediction", ["Dashboard", "Prediksi", "Laporan"])
+
+# ======================
+# MODEL LOAD
 # ======================
 model = joblib.load("model/model_rf.pkl")
 
 # ======================
-# HEADER
+# DASHBOARD
 # ======================
-st.markdown("""
-<div class="card">
-    <h1>💰 MediPrediction Dashboard</h1>
-    <p>Analisis & Prediksi Biaya Asuransi Kesehatan</p>
-</div>
-""", unsafe_allow_html=True)
+if page == "Dashboard":
+    st.title("📊 Dashboard Analisis")
 
-# =====================================================
-# 1. UPLOAD CSV
-# =====================================================
-st.header("📂 Upload Dataset")
+    uploaded_file = st.file_uploader("Upload CSV", type=["csv"])
 
-uploaded_file = st.file_uploader("Upload file CSV", type=["csv"])
+    if uploaded_file:
+        df = pd.read_csv(uploaded_file)
 
-if uploaded_file:
-    df = pd.read_csv(uploaded_file)
+        required_cols = ["age", "bmi", "children", "sex", "smoker", "region", "charges"]
 
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.subheader("📄 Preview Data")
-    st.dataframe(df.head())
-    st.markdown('</div>', unsafe_allow_html=True)
+        if not all(col in df.columns for col in required_cols):
+            st.error("Format CSV tidak sesuai!")
+        else:
+            st.dataframe(df.head())
 
-    # =====================================================
-    # 2. STATISTIK
-    # =====================================================
-    st.subheader("📊 Statistik Biaya")
+            # ======================
+            # METRIK
+            # ======================
+            col1, col2, col3 = st.columns(3)
+            col1.metric("Mean", f"${df['charges'].mean():,.2f}")
+            col2.metric("Min", f"${df['charges'].min():,.2f}")
+            col3.metric("Max", f"${df['charges'].max():,.2f}")
 
-    col1, col2, col3 = st.columns(3)
+            # ======================
+            # VISUALISASI
+            # ======================
+            fig, ax = plt.subplots()
+            ax.scatter(df["bmi"], df["charges"])
+            ax.set_xlabel("BMI")
+            ax.set_ylabel("Charges")
+            st.pyplot(fig)
 
-    col1.markdown(f'<div class="card"><p>Mean</p><p class="metric">${df["charges"].mean():,.2f}</p></div>', unsafe_allow_html=True)
-    col2.markdown(f'<div class="card"><p>Min</p><p class="metric">${df["charges"].min():,.2f}</p></div>', unsafe_allow_html=True)
-    col3.markdown(f'<div class="card"><p>Max</p><p class="metric">${df["charges"].max():,.2f}</p></div>', unsafe_allow_html=True)
+            # ======================
+            # 🚬 FILTER SMOKER
+            # ======================
+            st.markdown('<div class="card">', unsafe_allow_html=True)
+            st.subheader("🚬 Perokok vs Non-Perokok")
 
-    # =====================================================
-    # 3. VISUALISASI
-    # =====================================================
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.subheader("📈 BMI vs Charges")
+            smoker_filter = st.selectbox("Filter", ["all", "yes", "no"])
 
-    fig, ax = plt.subplots()
-    ax.scatter(df["bmi"], df["charges"])
-    ax.set_xlabel("BMI")
-    ax.set_ylabel("Charges")
+            if smoker_filter != "all":
+                df_filtered = df[df["smoker"] == smoker_filter]
+            else:
+                df_filtered = df
 
-    st.pyplot(fig)
-    st.markdown('</div>', unsafe_allow_html=True)
+            st.dataframe(df_filtered)
+            st.write("Rata-rata biaya:", df_filtered["charges"].mean())
 
-    # =====================================================
-    # 4. FILTER
-    # =====================================================
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.subheader("🚬 Perokok vs Non-Perokok")
+            st.markdown('</div>', unsafe_allow_html=True)
 
-    smoker_filter = st.selectbox("Filter", ["all", "yes", "no"])
-
-    if smoker_filter != "all":
-        df_filtered = df[df["smoker"] == smoker_filter]
     else:
-        df_filtered = df
-
-    st.dataframe(df_filtered)
-    st.write("Rata-rata biaya:", df_filtered["charges"].mean())
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # =====================================================
-    # 5. EXPORT
-    # =====================================================
-    st.subheader("📥 Export Data")
-
-    def to_excel(data):
-        output = BytesIO()
-        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-            data.to_excel(writer, index=False)
-        return output.getvalue()
-
-    excel_data = to_excel(df_filtered)
-
-    st.download_button(
-        label="Download Excel",
-        data=excel_data,
-        file_name="hasil_analisis.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
-
-# =====================================================
+        st.info("Silakan upload dataset terlebih dahulu")
+# ======================
 # PREDIKSI
-# =====================================================
-st.header("🔮 Prediksi Biaya")
+# ======================
+elif page == "Prediksi":
+    st.title("🔮 Prediksi Biaya")
 
-col1, col2 = st.columns(2)
+    col1, col2 = st.columns(2)
 
-with col1:
-    age = st.number_input("Age", 1, 100, 25)
-    bmi = st.number_input("BMI", 10.0, 60.0, 25.0)
-    children = st.number_input("Children", 0, 10, 0)
+    with col1:
+        age = st.number_input("Age", 1, 100, 25)
+        bmi = st.number_input("BMI", 10.0, 60.0, 25.0)
+        children = st.number_input("Children", 0, 10, 0)
 
-with col2:
-    sex = st.selectbox("Sex", ["male", "female"])
-    smoker = st.selectbox("Smoker", ["yes", "no"])
-    region = st.selectbox("Region", ["northeast", "northwest", "southeast", "southwest"])
+    with col2:
+        sex = st.selectbox("Sex", ["male", "female"])
+        smoker = st.selectbox("Smoker", ["yes", "no"])
+        region = st.selectbox("Region", ["northeast", "northwest", "southeast", "southwest"])
 
-input_data = pd.DataFrame([{
-    "age": age,
-    "bmi": bmi,
-    "children": children,
-    "sex": sex,
-    "smoker": smoker,
-    "region": region
-}])
+    input_data = pd.DataFrame([{
+        "age": age,
+        "bmi": bmi,
+        "children": children,
+        "sex": sex,
+        "smoker": smoker,
+        "region": region
+    }])
 
-if st.button("Predict"):
-    try:
+    if st.button("Predict"):
         pred = model.predict(input_data)[0]
+        st.success(f"Prediksi: ${pred:,.2f}")
 
-        st.markdown(f"""
-        <div class="card">
-            <h2>💵 Prediksi Biaya</h2>
-            <p class="metric">${pred:,.2f}</p>
-        </div>
-        """, unsafe_allow_html=True)
+# ======================
+# LAPORAN (MULTI MODEL)
+# ======================
+elif page == "Laporan":
+    st.title("📄 Laporan Perbandingan Model")
 
-        st.info(f"""
-        📊 Range:
-        - Lower: ${pred * 0.8:,.2f}
-        - Upper: ${pred * 1.2:,.2f}
-        """)
+    uploaded_file = st.file_uploader("Upload CSV untuk Training", type=["csv"])
 
-        # =========================================
-        # FEATURE IMPORTANCE
-        # =========================================
-        st.subheader("📊 Faktor Model")
+    if uploaded_file:
+        df = pd.read_csv(uploaded_file)
 
-        rf = model.named_steps['rf']
-        prep = model.named_steps['prep']
+        X = df.drop("charges", axis=1)
+        y = df["charges"]
 
-        cat_features = prep.named_transformers_['cat'].get_feature_names_out()
-        num_features = prep.transformers_[1][2]
+        X = pd.get_dummies(X, drop_first=True)
 
-        feature_names = list(cat_features) + list(num_features)
-        importances = rf.feature_importances_
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
 
-        sorted_idx = np.argsort(importances)[::-1]
+        models = {
+            "Linear Regression": LinearRegression(),
+            "Decision Tree": DecisionTreeRegressor(),
+            "Random Forest": RandomForestRegressor()
+        }
 
-        top_n = 5
-        top_features = [feature_names[i] for i in sorted_idx[:top_n]]
-        top_importances = importances[sorted_idx[:top_n]]
+        results = []
 
+        for name, m in models.items():
+            m.fit(X_train, y_train)
+            pred = m.predict(X_test)
+
+            mae = mean_absolute_error(y_test, pred)
+            mse = mean_squared_error(y_test, pred)
+            rmse = np.sqrt(mse)
+            r2 = r2_score(y_test, pred)
+
+            results.append([name, mae, mse, rmse, r2])
+
+        df_results = pd.DataFrame(results, columns=["Model", "MAE", "MSE", "RMSE", "R2"])
+
+        st.dataframe(df_results)
+
+        # Best model
+        best_model = df_results.loc[df_results['R2'].idxmax()]
+        st.success(f"Model terbaik: {best_model['Model']}")
+
+        # Plot
         fig2, ax2 = plt.subplots()
-        ax2.barh(top_features[::-1], top_importances[::-1])
-        ax2.set_title("Top 5 Faktor")
-
+        ax2.bar(df_results["Model"], df_results["R2"])
+        ax2.set_title("Perbandingan R2")
         st.pyplot(fig2)
 
-        df_importance = pd.DataFrame({
-            "Feature": top_features,
-            "Importance": top_importances
-        })
+        # Export
+        def to_excel(data):
+            output = BytesIO()
+            with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                data.to_excel(writer, index=False)
+            return output.getvalue()
 
-        st.dataframe(df_importance)
+        excel = to_excel(df_results)
 
-    except Exception as e:
-        st.error(f"Error: {str(e)}")
+        st.download_button("Download Laporan", data=excel, file_name="laporan.xlsx")
