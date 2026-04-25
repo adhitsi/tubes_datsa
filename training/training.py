@@ -34,7 +34,7 @@ preprocessor = ColumnTransformer([
 # PIPELINE FULL
 # ==========================
 model = Pipeline([
-    ('fe', FeatureEngineer()),   # 🔥 FE DI SINI
+    ('fe', FeatureEngineer()), 
     ('prep', preprocessor),
     ('rf', RandomForestRegressor(
         n_estimators=100,
