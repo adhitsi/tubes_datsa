@@ -14,7 +14,7 @@ from utils.feature_engineering import FeatureEngineer
 # ==========================
 # LOAD DATA
 # ==========================
-df = pd.read_csv('data/insurance.csv')
+df = pd.read_csv(r'tubes_datsa\data\insurance.csv')
 
 X = df.drop('charges', axis=1)
 y = df['charges']
