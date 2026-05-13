@@ -109,7 +109,10 @@ elif page == "Prediksi":
     with col2:
         sex = st.selectbox("Sex", ["male", "female"])
         smoker = st.selectbox("Smoker", ["yes", "no"])
-        region = st.selectbox("Region", ["northeast", "northwest", "southeast", "southwest"])
+        region = st.selectbox(
+            "Region",
+            ["northeast", "northwest", "southeast", "southwest"]
+        )
 
     input_data = pd.DataFrame([{
         "age": age,
@@ -121,8 +124,78 @@ elif page == "Prediksi":
     }])
 
     if st.button("Predict"):
+
+        # ======================
+        # PREDIKSI
+        # ======================
         pred = model.predict(input_data)[0]
-        st.success(f"Prediksi: ${pred:,.2f}")
+
+        st.success(f"💰 Prediksi Biaya Asuransi: ${pred:,.2f}")
+
+        # ======================
+        # INSIGHT
+        # ======================
+        st.subheader("📊 Insight Prediksi")
+
+        insights = []
+
+        # Insight umur
+        if age > 50:
+            insights.append(
+                "Usia tergolong tinggi sehingga risiko kesehatan meningkat."
+            )
+        elif age < 25:
+            insights.append(
+                "Usia muda cenderung memiliki biaya asuransi lebih rendah."
+            )
+
+        # Insight BMI
+        if bmi >= 30:
+            insights.append(
+                "BMI termasuk kategori obesitas yang dapat meningkatkan biaya asuransi."
+            )
+        elif bmi < 18.5:
+            insights.append(
+                "BMI tergolong rendah."
+            )
+        else:
+            insights.append(
+                "BMI berada pada kategori normal."
+            )
+
+        # Insight smoker
+        if smoker == "yes":
+            insights.append(
+                "Status perokok menjadi faktor utama peningkatan biaya asuransi."
+            )
+        else:
+            insights.append(
+                "Bukan perokok membantu menekan biaya asuransi."
+            )
+
+        # Insight anak
+        if children >= 3:
+            insights.append(
+                "Jumlah tanggungan cukup banyak sehingga biaya cenderung meningkat."
+            )
+
+        # ======================
+        # TAMPILKAN INSIGHT
+        # ======================
+        for item in insights:
+            st.write(f"✅ {item}")
+
+        # ======================
+        # KATEGORI BIAYA
+        # ======================
+        st.subheader("📌 Kategori Biaya")
+
+        if pred < 5000:
+            st.info("Biaya asuransi tergolong rendah.")
+        elif pred < 15000:
+            st.warning("Biaya asuransi tergolong sedang.")
+        else:
+            st.error("Biaya asuransi tergolong tinggi.")
 
 # ======================
 # LAPORAN (MULTI MODEL)
